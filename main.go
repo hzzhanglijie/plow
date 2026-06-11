@@ -27,6 +27,7 @@ var (
 
 	body        = kingpin.Flag("body", "HTTP request body, if start the body with @, the rest should be a filename to read").Short('b').String()
 	stream      = kingpin.Flag("stream", "Specify whether to stream file specified by '--body @file' using chunked encoding or to read into memory").Default("false").Bool()
+	outputFile  = kingpin.Flag("output-file", "Append HTTP response bodies to file").Short('o').String()
 	method      = kingpin.Flag("method", "HTTP method").Default("GET").Short('m').String()
 	headers     = kingpin.Flag("header", "Custom HTTP headers").Short('H').PlaceHolder("K:V").Strings()
 	host        = kingpin.Flag("host", "Host header").String()
@@ -220,8 +221,9 @@ func main() {
 		url:       *url,
 		method:    *method,
 		headers:   *headers,
-		bodyBytes: bodyBytes,
-		bodyFile:  bodyFile,
+		bodyBytes:  bodyBytes,
+		bodyFile:   bodyFile,
+		outputFile: *outputFile,
 
 		certPath: *cert,
 		keyPath:  *key,

@@ -105,6 +105,9 @@ type Requester struct {
 	readBytes  int64
 	writeBytes int64
 
+	outputFile *os.File
+	outputMu   sync.Mutex
+
 	cancel func()
 }
 
@@ -112,8 +115,9 @@ type ClientOpt struct {
 	url       string
 	method    string
 	headers   []string
-	bodyBytes []byte
-	bodyFile  string
+	bodyBytes  []byte
+	bodyFile   string
+	outputFile string
 
 	certPath string
 	keyPath  string
@@ -149,6 +153,13 @@ func NewRequester(concurrency int, requests int64, duration time.Duration, reqRa
 	}
 	r.httpClient = client
 	r.httpHeader = header
+	if clientOpt.outputFile != "" {
+		f, err := os.OpenFile(clientOpt.outputFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			return nil, err
+		}
+		r.outputFile = f
+	}
 	return r, nil
 }
 
@@ -273,7 +284,13 @@ func (r *Requester) DoRequest(req *fasthttp.Request, resp *fasthttp.Response, rr
 	case 5:
 		code = "5xx"
 	}
-	err = resp.BodyWriteTo(ioutil.Discard)
+	if r.outputFile != nil {
+		r.outputMu.Lock()
+		err = resp.BodyWriteTo(r.outputFile)
+		r.outputMu.Unlock()
+	} else {
+		err = resp.BodyWriteTo(ioutil.Discard)
+	}
 	if err != nil {
 		rr.cost = time.Since(startTime) - t1
 		rr.code = ""
@@ -287,6 +304,10 @@ func (r *Requester) DoRequest(req *fasthttp.Request, resp *fasthttp.Response, rr
 }
 
 func (r *Requester) Run() {
+	if r.outputFile != nil {
+		defer r.outputFile.Close()
+	}
+
 	// handle ctrl-c
 	sigs := make(chan os.Signal, 1)
 	signal.Notify(sigs, os.Interrupt, syscall.SIGTERM)
