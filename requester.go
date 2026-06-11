@@ -287,6 +287,9 @@ func (r *Requester) DoRequest(req *fasthttp.Request, resp *fasthttp.Response, rr
 	if r.outputFile != nil {
 		r.outputMu.Lock()
 		err = resp.BodyWriteTo(r.outputFile)
+		if err == nil {
+			_, err = r.outputFile.Write([]byte("\n"))
+		}
 		r.outputMu.Unlock()
 	} else {
 		err = resp.BodyWriteTo(ioutil.Discard)
